@@ -1,0 +1,6 @@
+# depslib dependency file v1.0
+1726979517 source:c:\users\user\downloads\compressed\hospital_management\main.cpp
+	<bits/stdc++.h>
+	<cstdio>
+	<conio.h>
+
