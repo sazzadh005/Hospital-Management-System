@@ -13,9 +13,9 @@ private:
 public:
     bool login(const string& user, const string& pass)
     {
-        for (int i=0;i<5;i++)
+        for(int i=0;i<5;i++)
         {
-            if (user==admin_username[i] && pass==admin_password[i])
+            if(user==admin_username[i] && pass==admin_password[i])
             {
                 return true;
             }
@@ -25,11 +25,11 @@ public:
 
     void createUser()
     {
-        char username[50], password[50];
+        char username[50],password[50];
         cout<<"Enter new username: ";cin>>username;
         cout<<"Enter new password: ";cin>>password;
 
-        FILE *file=fopen("users.csv", "a");
+        FILE *file=fopen("users.csv","a");
         if(file==NULL)
         {
             cout<<"Error opening file!"<<"\n";
@@ -44,9 +44,9 @@ public:
 
     void modifyUser()
     {
-        char username[50], newPassword[50], line[100];
-        cout << "Enter the username to modify: ";cin >> username;
-        cout << "Enter new password: ";cin >> newPassword;
+        char username[50],newPassword[50],line[100];
+        cout << "Enter the username to modify: ";cin>>username;
+        cout << "Enter new password: ";cin>>newPassword;
 
         FILE *file=fopen("users.csv","r");
         FILE *tempFile=fopen("temp.csv","w");
@@ -58,7 +58,7 @@ public:
 
         bool userFound=false;
 
-        while(fgets(line, sizeof(line), file))
+        while(fgets(line,sizeof(line),file))
         {
             char storedUser[50],storedPass[50];
             sscanf(line,"%[^,],%s",storedUser,storedPass);
@@ -247,10 +247,10 @@ void login_pannel()
 }
 
 
-bool isAdmin(const string& user, const string& pass)
+bool isAdmin(const string& user,const string& pass)
 {
     FILE *file=fopen("users.csv", "r");
-    if (file==NULL)
+    if(file==NULL)
     {
         cout<<"Error opening file!"<<"\n";
         return false;
@@ -260,14 +260,14 @@ bool isAdmin(const string& user, const string& pass)
     char username[50],password[50];
     bool userFound=false;
 
-    while (fgets(line,sizeof(line),file))
+    while(fgets(line,sizeof(line),file))
     {
-        sscanf(line,"%[^,],%s", username,password);
+        sscanf(line,"%[^,],%s",username,password);
 
-        if (strcmp(username,user.c_str())==0)
+        if(strcmp(username,user.c_str())==0)
         {
             userFound=true;
-            if (strcmp(password, pass.c_str())==0)
+            if(strcmp(password, pass.c_str())==0)
             {
                 fclose(file);
                 return true;
@@ -1009,15 +1009,129 @@ void addBilling(Patient* patient)
 {
     cout<<"Billing for patient ID: "<<patient->id<<"\n";
 
-    cout<<"Enter total billing amount: $";cin>>patient->totalBill;
-    patient->paidAmount=0;
+    cout<<"Enter total billing amount: $";
+    cin>>patient->totalBill;
+    patient->paidAmount= 0;
+    cout<<"Total billing amount for patient " << patient->name << " (ID: "<< patient->id<< ") is $"<<patient->totalBill<<"\n";
 
-    cout<<"Total billing amount for patient "<<patient->name<<" (ID: "<<patient->id << ") is $"<<patient->totalBill<<"\n";
+    FILE* patientsFile=fopen("patients.csv","a");
+    if(patientsFile)
+    {
+        fprintf(patientsFile,"Total Bill: %.2f\nPaid Amount: %.2f\n\n",patient->totalBill,patient->paidAmount);
+        fclose(patientsFile);
+    }
+    else
+    {
+        cerr<<"Error: Could not open patients.csv file for writing!"<<"\n";
+    }
 }
+
+
+void additionBilling(int patientID)
+{
+    FILE* file=fopen("patients.csv","r");
+    if (!file)
+    {
+        cerr<<"Error: Could not open patients.csv file!" <<"\n";
+        return;
+    }
+
+    char line[500];
+    float currentTotalBill=0.0;
+    bool found=false;
+
+    while(fgets(line, sizeof(line),file))
+    {
+        if(strncmp(line,"ID: ",4)==0)
+        {
+            int id_in_file;
+            sscanf(line+4,"%d",&id_in_file);
+
+            if (id_in_file==patientID)
+            {
+                found=true;
+                while(fgets(line, sizeof(line), file))
+                {
+                    if(strncmp(line,"Total Bill: ",12)==0)
+                    {
+                        sscanf(line+12,"%f",&currentTotalBill);
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+    }
+    fclose(file);
+    if (!found)
+    {
+        cout<<"Patient with ID "<<patientID<<" not found."<<"\n";
+        return;
+    }
+
+    cout<<"Current total billing amount for patient (ID: "<<patientID<< ") is $"<<currentTotalBill<<"\n";
+    cout<<"Enter additional billing amount: $";
+    float additionalBill;
+    cin>>additionalBill;
+
+    if (additionalBill<0)
+    {
+        cout<<"Additional billing amount cannot be negative."<<"\n";
+        return;
+    }
+
+    currentTotalBill +=additionalBill;
+
+    FILE* tempFile=fopen("temp_patients.csv","w");
+    file=fopen("patients.csv","r");
+    if(!file || !tempFile)
+    {
+        cerr<<"Error: Could not open files for updating billing!"<<"\n";
+        if(file) fclose(file);
+        if(tempFile) fclose(tempFile);
+        return;
+    }
+
+    while(fgets(line,sizeof(line),file))
+    {
+        fprintf(tempFile,"%s",line);
+        if(strncmp(line,"ID: ",4)==0)
+        {
+            int id_in_file;
+            sscanf(line+4,"%d",&id_in_file);
+
+            if(id_in_file==patientID)
+            {
+                while(fgets(line,sizeof(line),file))
+                {
+                    if(strncmp(line,"Total Bill: ",12)==0)
+                    {
+                        fprintf(tempFile,"Total Bill: %.2f\n",currentTotalBill);
+                        fgets(line,sizeof(line),file);
+                        fgets(line,sizeof(line),file);
+                        break;
+                    }
+                    else
+                    {
+                        fprintf(tempFile, "%s", line);
+                    }
+                }
+            }
+        }
+    }
+    fclose(file);
+    fclose(tempFile);
+
+    remove("patients.csv");
+    rename("temp_patients.csv", "patients.csv");
+    cout << "Updated total billing amount for patient (ID: " << patientID << ") is $" << currentTotalBill << "\n";
+}
+
+
 
 void admitPatient(Patient* &head1)
 {
-    Patient* newPatient = createPatient();
+    Patient* newPatient=createPatient();
 
     cout<<"Enter patient details:\n";
     getchar();
@@ -1030,75 +1144,329 @@ void admitPatient(Patient* &head1)
     cout<<"Problem Details: ";getline(cin,newPatient->problem);
     cout<<"Referred By: ";getline(cin,newPatient->refDoctor);
 
-    newPatient->date_time = current_dateTime();
-    newPatient->id = LastPatientIdFromFile();
+    newPatient->date_time=current_dateTime();
+    newPatient->id=LastPatientIdFromFile();
+
+    FILE* patientsFile=fopen("patients.csv","a");
+    if(patientsFile)
+    {
+        fprintf(patientsFile,
+                "ID: %d\nName: %s\nAge: %s\nBlood Group: %s\nGuardian Name: %s\nGuardian Relation: %s\nContact: %s\nProblem Details: %s\n"
+                "Admitting Date & Time: %s\nReferred Doctor: %s\n",
+                newPatient->id,newPatient->name.c_str(),newPatient->age.c_str(),newPatient->blood_grp.c_str(),
+                newPatient->guardian_name.c_str(),newPatient->guardian_relation.c_str(),newPatient->mobile.c_str(),
+                newPatient->problem.c_str(),newPatient->date_time.c_str(),newPatient->refDoctor.c_str());
+
+        fclose(patientsFile);
+
+        cout<<"Patient admitted successfully. Patient ID: "
+             <<newPatient->id<<"\nAdmission Date & Time: "
+             <<newPatient->date_time<<"\n\n";
+    }
+    else
+    {
+        cerr<<"Error: Could not open patients.csv file for writing!"<<"\n";
+    }
 
     addBilling(newPatient);
 
     newPatient->next = head1;
     head1 = newPatient;
-
-    FILE* patientsFile = fopen("patients.csv", "a");
-    if (patientsFile) {
-        fprintf(patientsFile,
-                "ID: %d\nName: %s\nAge: %s\nBlood Group: %s\nGuardian Name: %s\nGuardian Relation: %s\nContact: %s\nProblem Details: %s\nAdmitting Date & Time: %s\nReferred Doctor: %s\n\n",
-                newPatient->id, newPatient->name.c_str(), newPatient->age.c_str(),
-                newPatient->blood_grp.c_str(), newPatient->guardian_name.c_str(),
-                newPatient->guardian_relation.c_str(), newPatient->mobile.c_str(),
-                newPatient->problem.c_str(), newPatient->date_time.c_str(),
-                newPatient->refDoctor.c_str());
-        fclose(patientsFile);
-
-        cout << "Patient admitted successfully. Patient ID: "
-             << newPatient->id << "\nAdmission Date & Time: "
-             << newPatient->date_time << "\n\n";
-    } else {
-        cerr << "Error: Could not open patients.csv file for writing!" << endl;
-    }
 }
 
-Patient* findPatientByID(Patient* head, int id)
+
+Patient* findPatientByID(Patient* head,int id)
 {
     Patient* current=head;
+
     while (current !=NULL)
     {
         if (current->id==id)
-        {
+    {
             return current;
         }
         current=current->next;
     }
+
+    FILE* file=fopen("patients.csv","r");
+    if (file==NULL)
+    {
+        cerr<<"Unable to open file"<<"\n";
+        return NULL;
+    }
+
+    char line[500];
+    Patient* patient=NULL;
+
+    while (fgets(line,sizeof(line),file))
+    {
+        if (strncmp(line,"ID: ",4)==0)
+        {
+            int fileId;
+            sscanf(line+4,"%d",&fileId);
+
+            if (fileId==id)
+            {
+                patient=new Patient();
+                patient->id=fileId;
+
+                fgets(line,sizeof(line),file);patient->name=line+60;
+                fgets(line,sizeof(line),file);patient->age=line+60;
+                fgets(line,sizeof(line),file);patient->blood_grp=line+120;
+                fgets(line,sizeof(line),file);patient->guardian_name=line+150;
+                fgets(line,sizeof(line),file);patient->guardian_relation=line+180;
+                fgets(line,sizeof(line),file);patient->mobile=line+90;
+                fgets(line,sizeof(line),file);patient->problem=line+160;
+                fgets(line,sizeof(line),file);patient->date_time=line+280;
+                fgets(line,sizeof(line),file);patient->refDoctor=line+180;
+                fgets(line,sizeof(line),file);
+                sscanf(line+100, "%f",&patient->totalBill);
+                fgets(line,sizeof(line),file);
+                sscanf(line+12, "%f",&patient->paidAmount);
+
+                fclose(file);
+                return patient;
+            }
+        }
+    }
+
+    fclose(file);
     return NULL;
 }
 
-void searchPatientDetails(int patientID)
+
+void payBill(Patient* &head1,int patientID)
 {
-    FILE* file=fopen("patients.csv","r");
+    Patient* patient=findPatientByID(head1,patientID);
+
+    if (!patient)
+    {
+        cout<<"Patient with ID "<<patientID<<" not found."<<"\n";
+        return;
+    }
+
+    cout<<"Patient found. Current total bill: $"<<patient->totalBill<<"\n";
+    cout<<"Paid amount so far: $"<<patient->paidAmount<< "\n";
+
+    float payment;
+    cout<<"Enter payment amount: $";
+    cin>>payment;
+
+    if(payment<0)
+    {
+        cout<<"Payment amount cannot be negative."<<"\n";
+        return;
+    }
+
+    patient->paidAmount +=payment;
+    patient->totalBill -=payment;
+
+    cout<<"Updated paid amount: $"<<patient->paidAmount<<"\n";
+    cout<<"Updated total bill: $"<<patient->totalBill<<"\n";
+
+    FILE* tempFile=fopen("temp_patients.csv","w");
+    FILE* origFile=fopen("patients.csv","r");
+
+    if (origFile && tempFile)
+    {
+        char line[250];
+        while(fgets(line,sizeof(line),origFile))
+        {
+            if (strncmp(line, "ID: ", 4) == 0)
+            {
+                int id_in_file;
+                sscanf(line, "ID: %d", &id_in_file);
+
+                if(id_in_file==patient->id)
+                {
+                    fprintf(tempFile,
+                            "ID: %d\nName: %s\nAge: %s\nBlood Group: %s\nGuardian Name: %s\nGuardian Relation: %s\nContact: %s\nProblem Details: %s\n"
+                            "Admitting Date & Time: %s\nReferred Doctor: %s\nTotal Bill: %.2f\nPaid Amount: %.2f\n\n",
+                            patient->id, patient->name.c_str(),patient->age.c_str(),patient->blood_grp.c_str(),patient->guardian_name.c_str(),
+                            patient->guardian_relation.c_str(),patient->mobile.c_str(),patient->problem.c_str(),patient->date_time.c_str(),
+                            patient->refDoctor.c_str(), patient->totalBill, patient->paidAmount);
+
+                    for(int i=0;i<10;i++)
+                    {
+                        fgets(line, sizeof(line), origFile);
+                    }
+                }
+                else
+                {
+                    fprintf(tempFile, "%s", line);
+                }
+            }
+            else
+            {
+                fprintf(tempFile, "%s", line);
+            }
+        }
+        fclose(origFile);
+        fclose(tempFile);
+
+        remove("patients.csv");
+        rename("temp_patients.csv","patients.csv");
+        remove("temp_patients.csv");
+
+        cout<<"Bill updated successfully."<<"\n";
+    }
+    else
+    {
+        cerr<<"Error updating the bill!"<<"\n";
+        if (origFile) fclose(origFile);
+        if (tempFile) fclose(tempFile);
+    }
+}
+
+
+void bill_details(int patientID)
+{
+    FILE* file=fopen("patients.csv", "r");
     if (!file)
     {
         cerr<<"Error: Could not open patients.csv file!"<<"\n";
         return;
     }
 
-    char line[250];
-    bool found=false;
+    char line[500];
+    bool found =false;
+
+
+    while(fgets(line,sizeof(line),file))
+    {
+        if(strncmp(line,"ID: ",4)==0)
+        {
+            int id;
+            sscanf(line +4,"%d",&id);
+
+            if(id==patientID)
+            {
+                found=true;
+                cout<<"Patient ID: "<<id<<"\n";
+                while(fgets(line,sizeof(line),file))
+                {
+                    if(strncmp(line,"Total Bill: ", 12) ==0)
+                    {
+                        cout<<line;
+                    }
+                    if(strncmp(line,"Paid Amount: ",13)==0)
+                    {
+                        cout<<line;
+                    }
+                    if(strncmp(line,"\n",1)==0)
+                    {
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+    }
+    fclose(file);
+
+    if (!found)
+    {
+        file=fopen("released_patients.csv", "r");
+        if(!file)
+        {
+            cerr<<"Error: Could not open released_patients.csv file!"<<"\n";
+            return;
+        }
+
+        cout<<"Patient not found in admitted patients. Checking released patients...\n\n";
+
+        while(fgets(line,sizeof(line),file))
+        {
+            if(strncmp(line,"ID:",4)==0)
+            {
+                int id;
+                sscanf(line+4,"%d",&id);
+
+                if(id==patientID)
+                {
+                    cout<<"Patient ID: "<<id<<" (Released)\n";
+
+                    while(fgets(line,sizeof(line),file))
+                    {
+                        if (strncmp(line,"Total Bill: ",12)==0)
+                        {
+                            cout<<line;
+                        }
+                        if(strncmp(line,"Paid Amount: ",13)==0)
+                        {
+                            cout<<line;
+                        }
+                        if(strncmp(line,"\n",1)==0)
+                        {
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        fclose(file);
+    }
+
+    if (!found)
+    {
+        cout << "Patient with ID " << patientID << " not found in both admitted and released lists.\n";
+    }
+}
+
+
+void AdmittedPatients()
+{
+    FILE* file=fopen("patients.csv","r");
+    if(!file)
+    {
+        cerr<<"Error: Could not open patients.csv file!"<<"\n";
+        return;
+    }
+
+    cout<<"Admitted Patients Details:\n\n";
+    char line[500];
+    while(fgets(line,sizeof(line),file))
+    {
+        cout<<line;
+    }
+
+    fclose(file);
+}
+
+
+
+void searchPatientDetails(int patientID)
+{
+    FILE* file=fopen("patients.csv","r");
+    if(!file)
+    {
+        cerr<<"Error: Could not open patients.csv file!"<<"\n";
+        return;
+    }
+
+    char line[500];
+    bool found = false;
 
     while (fgets(line,sizeof(line),file))
     {
-        if (strncmp(line,"ID: ",4)==0)
+        if(strncmp(line,"ID: ",4)==0)
         {
             int id_in_file;
             sscanf(line,"ID: %d",&id_in_file);
 
-            if (id_in_file==patientID)
+            if(id_in_file==patientID)
             {
-                found = true;
-                cout << "Patient Details:\n";
-                cout << line;
-                for (int i=0;i<9;i++)
+                found =true;
+                cout<<"Patient Details:\n";
+                cout<<line;
+
+                for(int i=0;i<10;i++)
                 {
-                    fgets(line,sizeof(line),file);
-                    cout << line;
+                    if(fgets(line,sizeof(line),file) !=NULL)
+                    {
+                        cout<<line;
+                    }
                 }
                 break;
             }
@@ -1113,87 +1481,9 @@ void searchPatientDetails(int patientID)
 
 
 
-void payBill(Patient* &head1,int patientID)
-{
-    Patient*patient=findPatientByID(head1,patientID);
-
-    if(!patient)
-    {
-        cout<<"Patient with ID "<<patientID<<" not found."<<"\n";
-        return;
-    }
-
-    cout<<"Patient found. Current bill: $"<<patient->totalBill<<"\n";
-    cout<<"Paid amount so far: $"<<patient->paidAmount<<"\n";
-
-    float payment;
-    cout<<"Enter payment amount: $";
-    cin>>payment;
-
-    if (payment<0)
-    {
-        cout<<"Payment amount cannot be negative."<<"\n";
-        return;
-    }
-
-    patient->paidAmount+=payment;
-    cout <<"Updated paid amount: $"<<patient->paidAmount<<"\n";
-
-    FILE* tempFile=fopen("temp_patients.csv","w");
-    FILE* origFile=fopen("patients.csv","r");
-
-    if(origFile && tempFile)
-    {
-        char line[250];
-        while(fgets(line,sizeof(line),origFile))
-        {
-            if(strncmp(line,"ID: ",4)==0)
-            {
-                int id_in_file;
-                sscanf(line,"ID: %d",&id_in_file);
-
-                if (id_in_file == patient->id) {
-                    fprintf(tempFile,
-                            "ID: %d\nName: %s\nAge: %s\nBlood Group: %s\nGuardian Name: %s\nGuardian Relation: %s\nContact: %s\nProblem Details: %s\n"
-                            "Admitting Date & Time: %s\nReferred Doctor: %s\nTotal Bill: %.2f\nPaid Amount: %.2f\n\n",
-                            patient->id, patient->name.c_str(), patient->age.c_str(),patient->blood_grp.c_str(), patient->guardian_name.c_str(),
-                            patient->guardian_relation.c_str(), patient->mobile.c_str(),patient->problem.c_str(), patient->date_time.c_str(),patient->refDoctor.c_str(),
-                            patient->totalBill, patient->paidAmount);
-
-                    for (int i=0; i<10;i++)
-                    {
-                        fgets(line,sizeof(line),origFile);
-                    }
-                }
-                else
-                {
-                    fprintf(tempFile,"%s",line);
-                }
-            }
-            else
-            {
-                fprintf(tempFile,"%s",line);
-            }
-        }
-        fclose(origFile);
-        fclose(tempFile);
-
-        remove("patients.csv");
-        rename("temp_patients.csv", "patients.csv");
-
-        cout << "Bill updated successfully." << "\n";
-    } else {
-        cerr << "Error updating the bill!" << "\n";
-        if (origFile) fclose(origFile);
-        if (tempFile) fclose(tempFile);
-    }
-}
-
-
-
 void releasePatient(Patient* &head1,int patientID)
 {
-    Patient* patient=findPatientByID(head1,patientID);
+    Patient* patient=findPatientByID(head1, patientID);
 
     if(!patient)
     {
@@ -1203,20 +1493,46 @@ void releasePatient(Patient* &head1,int patientID)
 
     cout<<"Releasing patient with ID: "<<patientID<<"\n";
 
-    if(patient->totalBill>patient->paidAmount)
+    float outstandingBill=patient->totalBill - patient->paidAmount;
+
+    if (outstandingBill>0)
     {
-        cout<<"Outstanding bill: $"<<(patient->totalBill-patient->paidAmount)
+        cout<<"Outstanding bill: $"<<outstandingBill
              <<". Please pay the remaining amount to release the patient."<<"\n";
         return;
     }
+
+    if (patient->paidAmount > patient->totalBill)
+    {
+        float refundAmount=patient->paidAmount - patient->totalBill;
+        cout<<"Refunding $"<<refundAmount<<" to the patient.\n";
+    }
+
+    FILE* releasedFile =fopen("released_patients.csv","a");
+    if (releasedFile)
+    {
+        fprintf(releasedFile,
+                "ID: %d\nName: %s\nAge: %s\nBlood Group: %s\nGuardian Name: %s\nGuardian Relation: %s\nContact: %s\nProblem Details: %s\n"
+                "Admitting Date & Time: %s\nReferred Doctor: %s\nTotal Bill: %.2f\nPaid Amount: %.2f\n\n",
+                patient->id, patient->name.c_str(), patient->age.c_str(), patient->blood_grp.c_str(), patient->guardian_name.c_str(),
+                patient->guardian_relation.c_str(), patient->mobile.c_str(), patient->problem.c_str(), patient->date_time.c_str(), patient->refDoctor.c_str(),
+                patient->totalBill, patient->paidAmount);
+
+        fclose(releasedFile);
+    }
+    else
+    {
+        cerr<<"Error: Could not open released_patients.csv file for writing!"<<"\n";
+    }
+
     Patient* current=head1;
     Patient* prev=NULL;
 
-    while(current)
+    while (current)
     {
-        if(current==patient)
-            {
-            if(prev)
+        if (current==patient)
+        {
+            if (prev)
             {
                 prev->next=current->next;
             }
@@ -1238,15 +1554,15 @@ void releasePatient(Patient* &head1,int patientID)
         char line[250];
         while(fgets(line,sizeof(line),origFile))
         {
-            if(strncmp(line, "ID: ",4)==0)
+            if(strncmp(line,"ID: ",4)==0)
             {
                 int id_in_file;
-                sscanf(line,"ID: %d",&id_in_file);
-                if (id_in_file == patient->id)
+                sscanf(line, "ID: %d", &id_in_file);
+                if (id_in_file==patient->id)
                 {
-                    for (int i=0;i<10;i++)
+                    for(int i=0;i<10;i++)
                     {
-                        fgets(line, sizeof(line), origFile);
+                        fgets(line,sizeof(line),origFile);
                     }
                 }
                 else
@@ -1264,7 +1580,7 @@ void releasePatient(Patient* &head1,int patientID)
 
         remove("patients.csv");
         rename("temp_patients.csv","patients.csv");
-        cout<<"Patient "<<patientID<<" released successfully."<<"\n";
+        cout<<"Patient "<<patientID <<" released successfully."<<"\n";
     }
     else
     {
@@ -1272,8 +1588,32 @@ void releasePatient(Patient* &head1,int patientID)
         if(origFile) fclose(origFile);
         if(tempFile) fclose(tempFile);
     }
+
     delete patient;
 }
+
+
+void ReleasedPatients()
+{
+    FILE* file=fopen("released_patients.csv","r");
+    if(!file)
+    {
+        cerr<<"Error: Could not open released_patients.csv file!"<<"\n";
+        return;
+    }
+
+    cout<<"Released Patients Details:\n\n";
+    char line[500];
+    while(fgets(line,sizeof(line),file))
+    {
+        cout<<line;
+    }
+
+    fclose(file);
+}
+
+
+
 
 
 
@@ -1352,30 +1692,33 @@ int main() {
                             int choice;
                             do {
                                 try {
-                                    cout<<"Receptionist Menu" <<"\n";
-                                    cout<<"1. Add" <<"\n";
-                                    cout<<"2. View" <<"\n";
-                                    cout<<"3. Search" <<"\n";
-                                    cout <<"4. Delete" <<"\n";
-                                    cout <<"5. Exit to Menu" <<"\n";
+                                    cout<<"Receptionist Menu"<<"\n";
+                                    cout<<"1. Add"<<"\n";
+                                    cout<<"2. View"<<"\n";
+                                    cout<<"3. Search"<<"\n";
+                                    cout<<"4. Delete"<<"\n";
+                                    cout<<"5. Exit to Menu"<<"\n";
                                     cout<<"Enter your choice: ";
 
-                                    if (!(cin >> choice)) {
+                                    if (!(cin >> choice))
+                                    {
                                         throw invalid_argument("Input must be a number.");
                                     }
 
-                                    switch (choice) {
+                                    switch (choice)
+                                    {
                                         case 1:
                                             addReceptionist();
                                             break;
                                         case 2:
                                             receptionist_database();
                                             break;
-                                        case 3: {
+                                        case 3:
+                                        {
                                             string Rname;
                                             cin.ignore();
-                                            cout << "Enter Name to Search: ";
-                                            getline(cin, Rname);
+                                            cout<<"Enter Name to Search: ";
+                                            getline(cin,Rname);
                                             searchReceptionist(Rname.c_str());
                                             break;
                                         }
@@ -1389,7 +1732,8 @@ int main() {
                                             cout << "Invalid option. Please try again." << "\n";
                                     }
                                 }
-                                catch (const invalid_argument &e) {
+                                catch (const invalid_argument &e)
+                                {
                                     cout << "Error: " << e.what() << "\n";
                                     cin.clear();
                                     cin.ignore(numeric_limits<streamsize>::max(), '\n');
@@ -1401,12 +1745,12 @@ int main() {
                             int choice;
                             do {
                                 try {
-                                    cout<< "Nurses Menu" <<"\n";
-                                    cout<<"1. Add" <<"\n";
-                                    cout<<"2. View" <<"\n";
-                                    cout<<"3. Search" <<"\n";
-                                    cout<<"4. Delete" <<"\n";
-                                    cout<<"5. Exit to Menu" <<"\n";
+                                    cout<<"Nurses Menu"<<"\n";
+                                    cout<<"1. Add"<<"\n";
+                                    cout<<"2. View"<<"\n";
+                                    cout<<"3. Search"<<"\n";
+                                    cout<<"4. Delete"<<"\n";
+                                    cout<<"5. Exit to Menu"<<"\n";
                                     cout<<"Enter your choice: ";
 
                                     if (!(cin >> choice)) {
@@ -1546,75 +1890,82 @@ int main() {
                         case 9:
                             {
                             int choice;
-                            do {
-                                try {
-                                    cout<<"Patient Menu" << "\n";
-                                    cout<<"1. Admit Patient"<<"\n";
-                                    cout<<"2. Add Billing"<<"\n";
-                                    cout<<"3. Pay Bill"<<"\n";
-                                    cout<<"4. Search Patient"<< "\n";
-                                    cout<<"5. Release Patient"<<"\n";
-                                    cout<<"6. Exit to Menu"<<"\n";
-                                    cout<<"Enter your choice: ";
+                                do {
+                                    try {
+                                        cout << "Patient Menu" << "\n";
+                                        cout << "1. Admit Patient" << "\n";
+                                        cout << "2. Add Billing" << "\n";
+                                        cout << "3. Pay Bill" << "\n";
+                                        cout << "4. Bill Details" << "\n";
+                                        cout << "5. Print Admitted Patients" << "\n";
+                                        cout << "6. Search Patient" << "\n";
+                                        cout << "7. Release Patient" << "\n";
+                                        cout << "8. Print Released Patients" << "\n";
+                                        cout << "9. Exit" << "\n";
+                                        cout << "Enter your choice: ";
 
-                                    if (!(cin >> choice))
-                                    {
-                                        throw invalid_argument("Input must be a number.");
-                                    }
+                                        if (!(cin >> choice)) {
+                                            throw invalid_argument("Input must be a number.");
+                                        }
 
-                                    switch (choice)
-                                    {
-                                        case 1:
-                                            admitPatient(head);
-                                            break;
-                                        case 2: {
-                                            int patientID;
-                                            cout << "Enter Patient ID to add billing: ";
-                                            cin >> patientID;
-                                            Patient* patient = findPatientByID(head, patientID);
-
-                                            if (patient) {
-                                                addBilling(patient);
-                                            } else {
-                                                cout << "Patient with ID " << patientID << " not found." << "\n";
+                                        switch (choice) {
+                                            case 1:
+                                                admitPatient(head);
+                                                break;
+                                            case 2: {
+                                                int patientID;
+                                                cout << "Enter Patient ID to add billing: ";
+                                                cin >> patientID;
+                                                additionBilling(patientID);
+                                                break;
                                             }
-                                            break;
+                                            case 3: {
+                                                int patientID;
+                                                cout << "Enter Patient ID to pay the bill: ";
+                                                cin >> patientID;
+                                                payBill(head, patientID);
+                                                break;
+                                            }
+                                            case 4: {
+                                                int patientID;
+                                                cout << "Enter Patient ID to check bill details: ";
+                                                cin >> patientID;
+                                                bill_details(patientID);
+                                                break;
+                                            }
+                                            case 5:
+                                                AdmittedPatients();
+                                                break;
+                                            case 6: {
+                                                int patientID;
+                                                cout << "Enter Patient ID to search: ";
+                                                cin >> patientID;
+                                                searchPatientDetails(patientID);
+                                                break;
+                                            }
+                                            case 7: {
+                                                int patientID;
+                                                cout << "Enter Patient ID to release: ";
+                                                cin >> patientID;
+                                                releasePatient(head, patientID);
+                                                break;
+                                            }
+                                            case 8:
+                                                ReleasedPatients();
+                                                break;
+                                            case 9:
+                                                cout << "Exiting the program." << "\n";
+                                                break;
+                                            default:
+                                                cout << "Invalid option. Please try again." << "\n";
                                         }
-                                        case 3: {
-                                            int patientID;
-                                            cout << "Enter Patient ID to pay the bill: ";
-                                            cin >> patientID;
-                                            payBill(head, patientID);
-                                            break;
-                                        }
-                                        case 4: {
-                                            int patientID;
-                                            cout << "Enter Patient ID to search: ";
-                                            cin >> patientID;
-                                            searchPatientDetails(patientID);
-                                            break;
-                                        }
-                                        case 5: {
-                                            int patientID;
-                                            cout << "Enter Patient ID to release: ";
-                                            cin >> patientID;
-                                            releasePatient(head, patientID);
-                                            break;
-                                        }
-                                        case 6:
-                                            cout<<"Exiting to Main Menu"<<"\n";
-                                            break;
-                                        default:
-                                            cout << "Invalid option. Please try again." << "\n";
                                     }
-                                }
-                                catch (const invalid_argument &e)
-                                {
-                                    cout << "Error: " << e.what() << "\n";
-                                    cin.clear();
-                                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
-                                }
-                                } while (choice != 6);
+                                    catch (const invalid_argument &e) {
+                                        cout << "Error: " << e.what() << "\n";
+                                        cin.clear();
+                                        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                                    }
+                                } while (choice != 9);
                             }
                         case 10:
                             cout << "Exiting admin panel."<<"\n";
@@ -1664,7 +2015,7 @@ int main() {
                                     cout<<"2. View" <<"\n";
                                     cout<<"3. Search" <<"\n";
                                     cout<<"4. Delete" <<"\n";
-                                    cout<<"4. Exit to Menu" <<"\n";
+                                    cout<<"5. Exit to Menu" <<"\n";
                                     cout<<"Enter your choice: ";
 
                                     if (!(cin >> choice)) {
@@ -1708,12 +2059,12 @@ int main() {
                             int choice;
                             do {
                                 try {
-                                    cout << "Nurses Menu" <<"\n";
-                                    cout<<"1. Add" <<"\n";
-                                    cout<<"2. View" <<"\n";
-                                    cout<<"3. Search" <<"\n";
-                                    cout<<"4. Delete" <<"\n";
-                                    cout<<"4. Exit to Menu" <<"\n";
+                                    cout<<"Nurses Menu"<<"\n";
+                                    cout<<"1. Add"<<"\n";
+                                    cout<<"2. View"<<"\n";
+                                    cout<<"3. Search"<<"\n";
+                                    cout<<"4. Delete"<<"\n";
+                                    cout<<"5. Exit to Menu"<<"\n";
                                     cout<<"Enter your choice: ";
 
                                     if (!(cin >> choice)) {
@@ -1757,12 +2108,12 @@ int main() {
                             int choice;
                             do {
                                 try {
-                                    cout << "Support Staff Menu" <<"\n";
-                                    cout<<"1. Add" <<"\n";
-                                    cout<<"2. View" <<"\n";
-                                    cout<<"3. Search" <<"\n";
-                                    cout<<"4. Delete" <<"\n";
-                                    cout<<"4. Exit to Menu" <<"\n";
+                                    cout<<"Support Staff Menu"<<"\n";
+                                    cout<<"1. Add"<<"\n";
+                                    cout<<"2. View"<<"\n";
+                                    cout<<"3. Search"<<"\n";
+                                    cout<<"4. Delete"<<"\n";
+                                    cout<<"5. Exit to Menu"<<"\n";
                                     cout<<"Enter your choice: ";
 
                                     if (!(cin >> choice)) {
@@ -1811,7 +2162,7 @@ int main() {
                                     cout<<"2. View" <<"\n";
                                     cout<<"3. Search" <<"\n";
                                     cout<<"4. Delete" <<"\n";
-                                    cout<<"4. Exit to Menu" <<"\n";
+                                    cout<<"5. Exit to Menu" <<"\n";
                                     cout<<"Enter your choice: ";
 
                                     if (!(cin>>choice))
@@ -1856,75 +2207,82 @@ int main() {
                         case 5:
                             {
                             int choice;
-                            do {
-                                try {
-                                    cout<<"Patient Menu" << "\n";
-                                    cout<<"1. Admit Patient"<<"\n";
-                                    cout<<"2. Add Billing"<<"\n";
-                                    cout<<"3. Pay Bill"<<"\n";
-                                    cout<<"4. Search Patient"<< "\n";
-                                    cout<<"5. Release Patient"<<"\n";
-                                    cout<<"6. Exit"<<"\n";
-                                    cout<<"Enter your choice: ";
+                                do {
+                                    try {
+                                        cout << "Patient Menu" << "\n";
+                                        cout << "1. Admit Patient" << "\n";
+                                        cout << "2. Add Billing" << "\n";
+                                        cout << "3. Pay Bill" << "\n";
+                                        cout << "4. Bill Details" << "\n";
+                                        cout << "5. Print Admitted Patients" << "\n";
+                                        cout << "6. Search Patient" << "\n";
+                                        cout << "7. Release Patient" << "\n";
+                                        cout << "8. Print Released Patients" << "\n";
+                                        cout << "9. Exit" << "\n";
+                                        cout << "Enter your choice: ";
 
-                                    if (!(cin >> choice))
-                                    {
-                                        throw invalid_argument("Input must be a number.");
-                                    }
+                                        if (!(cin >> choice)) {
+                                            throw invalid_argument("Input must be a number.");
+                                        }
 
-                                    switch (choice)
-                                    {
-                                        case 1:
-                                            admitPatient(head);
-                                            break;
-                                        case 2: {
-                                            int patientID;
-                                            cout << "Enter Patient ID to add billing: ";
-                                            cin >> patientID;
-                                            Patient* patient = findPatientByID(head, patientID);
-
-                                            if (patient) {
-                                                addBilling(patient);
-                                            } else {
-                                                cout << "Patient with ID " << patientID << " not found." << "\n";
+                                        switch (choice) {
+                                            case 1:
+                                                admitPatient(head);
+                                                break;
+                                            case 2: {
+                                                int patientID;
+                                                cout << "Enter Patient ID to add billing: ";
+                                                cin >> patientID;
+                                                additionBilling(patientID);
+                                                break;
                                             }
-                                            break;
+                                            case 3: {
+                                                int patientID;
+                                                cout << "Enter Patient ID to pay the bill: ";
+                                                cin >> patientID;
+                                                payBill(head, patientID);
+                                                break;
+                                            }
+                                            case 4: {
+                                                int patientID;
+                                                cout << "Enter Patient ID to check bill details: ";
+                                                cin >> patientID;
+                                                bill_details(patientID);
+                                                break;
+                                            }
+                                            case 5:
+                                                AdmittedPatients();
+                                                break;
+                                            case 6: {
+                                                int patientID;
+                                                cout << "Enter Patient ID to search: ";
+                                                cin >> patientID;
+                                                searchPatientDetails(patientID);
+                                                break;
+                                            }
+                                            case 7: {
+                                                int patientID;
+                                                cout << "Enter Patient ID to release: ";
+                                                cin >> patientID;
+                                                releasePatient(head, patientID);
+                                                break;
+                                            }
+                                            case 8:
+                                                ReleasedPatients();
+                                                break;
+                                            case 9:
+                                                cout << "Exiting the program." << "\n";
+                                                break;
+                                            default:
+                                                cout << "Invalid option. Please try again." << "\n";
                                         }
-                                        case 3: {
-                                            int patientID;
-                                            cout << "Enter Patient ID to pay the bill: ";
-                                            cin >> patientID;
-                                            payBill(head, patientID);
-                                            break;
-                                        }
-                                        case 4: {
-                                            int patientID;
-                                            cout << "Enter Patient ID to search: ";
-                                            cin >> patientID;
-                                            searchPatientDetails(patientID);
-                                            break;
-                                        }
-                                        case 5: {
-                                            int patientID;
-                                            cout << "Enter Patient ID to release: ";
-                                            cin >> patientID;
-                                            releasePatient(head, patientID);
-                                            break;
-                                        }
-                                        case 6:
-                                            cout << "Exiting the system." << "\n";
-                                            break;
-                                        default:
-                                            cout << "Invalid option. Please try again." << "\n";
                                     }
-                                }
-                                catch (const invalid_argument &e)
-                                {
-                                    cout << "Error: " << e.what() << "\n";
-                                    cin.clear();
-                                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
-                                }
-                                } while (choice != 6);
+                                    catch (const invalid_argument &e) {
+                                        cout << "Error: " << e.what() << "\n";
+                                        cin.clear();
+                                        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                                    }
+                                } while (choice != 9);
                             }
                         case 6:
                             cout << "Exiting User panel."<<"\n";
