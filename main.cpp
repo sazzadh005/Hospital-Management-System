@@ -974,6 +974,7 @@ struct Patient {
     string date_time;
     float totalBill;
     float paidAmount;
+    float lastPayment;
     Patient* next;
 };
 
@@ -1239,14 +1240,48 @@ void payBill(Patient* &head1,int patientID)
 {
     Patient* patient=findPatientByID(head1,patientID);
 
-    if (!patient)
+    if(!patient)
     {
         cout<<"Patient with ID "<<patientID<<" not found."<<"\n";
         return;
     }
 
-    cout<<"Patient found. Current total bill: $"<<patient->totalBill<<"\n";
-    cout<<"Paid amount so far: $"<<patient->paidAmount<< "\n";
+    float totalBill =0.0;
+    FILE* origFile=fopen("patients.csv","r");
+    if(origFile)
+    {
+        char line[250];
+        while(fgets(line,sizeof(line),origFile))
+        {
+            if(strncmp(line,"ID: ",4)==0)
+            {
+                int id_in_file;
+                sscanf(line,"ID: %d",&id_in_file);
+
+                if(id_in_file==patient->id)
+                {
+                    while(fgets(line,sizeof(line),origFile))
+                    {
+                        if(strncmp(line,"Total Bill: ",12)==0)
+                        {
+                            sscanf(line,"Total Bill: %f",&totalBill);
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        fclose(origFile);
+    }
+    else
+    {
+        cerr<<"Error opening patients.csv!"<<"\n";
+        return;
+    }
+
+    cout<<"Patient found. Current total bill: $"<<totalBill<<"\n";
+    cout<<"Paid amount so far: $"<<patient->paidAmount<<"\n";
 
     float payment;
     cout<<"Enter payment amount: $";
@@ -1258,47 +1293,54 @@ void payBill(Patient* &head1,int patientID)
         return;
     }
 
+    patient->lastPayment =payment;
     patient->paidAmount +=payment;
-    patient->totalBill -=payment;
+    totalBill -=payment;
 
     cout<<"Updated paid amount: $"<<patient->paidAmount<<"\n";
-    cout<<"Updated total bill: $"<<patient->totalBill<<"\n";
+    cout<<"Updated total bill: $"<<totalBill<<"\n";
 
     FILE* tempFile=fopen("temp_patients.csv","w");
-    FILE* origFile=fopen("patients.csv","r");
+    origFile = fopen("patients.csv","r");
 
-    if (origFile && tempFile)
+    if(origFile && tempFile)
     {
         char line[250];
         while(fgets(line,sizeof(line),origFile))
         {
-            if (strncmp(line, "ID: ", 4) == 0)
+            if(strncmp(line,"ID: ",4)==0)
             {
                 int id_in_file;
-                sscanf(line, "ID: %d", &id_in_file);
+                sscanf(line,"ID: %d",&id_in_file);
 
                 if(id_in_file==patient->id)
                 {
                     fprintf(tempFile,
                             "ID: %d\nName: %s\nAge: %s\nBlood Group: %s\nGuardian Name: %s\nGuardian Relation: %s\nContact: %s\nProblem Details: %s\n"
-                            "Admitting Date & Time: %s\nReferred Doctor: %s\nTotal Bill: %.2f\nPaid Amount: %.2f\n\n",
-                            patient->id, patient->name.c_str(),patient->age.c_str(),patient->blood_grp.c_str(),patient->guardian_name.c_str(),
-                            patient->guardian_relation.c_str(),patient->mobile.c_str(),patient->problem.c_str(),patient->date_time.c_str(),
-                            patient->refDoctor.c_str(), patient->totalBill, patient->paidAmount);
+                            "Admitting Date & Time: %s\nReferred Doctor: %s\nTotal Bill: %.2f\nPaid Amount: %.2f\nLast Payment: %.2f\n\n",
+                            patient->id,patient->name.c_str(),patient->age.c_str(),patient->blood_grp.c_str(),
+                            patient->guardian_name.c_str(),patient->guardian_relation.c_str(),patient->mobile.c_str(),
+                            patient->problem.c_str(),patient->date_time.c_str(),patient->refDoctor.c_str(),
+                            totalBill,patient->paidAmount,patient->lastPayment);
 
                     for(int i=0;i<10;i++)
                     {
-                        fgets(line, sizeof(line), origFile);
+                        fgets(line,sizeof(line),origFile);
                     }
                 }
                 else
                 {
-                    fprintf(tempFile, "%s", line);
+                    fprintf(tempFile,"%s",line);
+                    for (int i=0;i<10;i++)
+                    {
+                        fgets(line,sizeof(line),origFile);
+                        fprintf(tempFile,"%s",line);
+                    }
                 }
             }
             else
             {
-                fprintf(tempFile, "%s", line);
+                fprintf(tempFile,"%s",line);
             }
         }
         fclose(origFile);
@@ -1313,10 +1355,11 @@ void payBill(Patient* &head1,int patientID)
     else
     {
         cerr<<"Error updating the bill!"<<"\n";
-        if (origFile) fclose(origFile);
-        if (tempFile) fclose(tempFile);
+        if(origFile) fclose(origFile);
+        if(tempFile) fclose(tempFile);
     }
 }
+
 
 
 void bill_details(int patientID)
